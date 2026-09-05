@@ -1,9 +1,9 @@
 /* SiteTrack Service Worker */
-/* sitetrack-v30 — App Shell + True Offline Map Tile Caching (Pure Cache API LRU Circular Buffer) */
+/* sitetrack-v31 — App Shell + Smooth Bottom Sheet Drag-to-Close & Pulldown Animation */
 
 'use strict';
 
-const CACHE = 'sitetrack-v30';
+const CACHE = 'sitetrack-v31';
 const TILE_CACHE = 'sitetrack-tiles-v1';
 
 const MAX_TILES = 250;        // hard ceiling for tile entries

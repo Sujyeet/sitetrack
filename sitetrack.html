@@ -1191,7 +1191,9 @@
       padding: 20px 18px 28px;
       max-height: 85vh;
       overflow-y: auto;
-      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+      overscroll-behavior-y: contain;
+      will-change: transform;
+      transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
       box-shadow: 0 -8px 36px rgba(0, 0, 0, 0.7);
     }
 
@@ -6747,7 +6749,7 @@
       };
 
       window._closeDetails = function () {
-        document.getElementById('detailSheet').classList.remove('open');
+        dismissSheetSmoothly(document.getElementById('detailSheet'));
       };
 
       window._logCall = function (id) {
@@ -7769,16 +7771,59 @@
         if (willOpen) sheet.classList.add('open');
       });
 
+      /* Butter-smooth sheet animated dismissal */
+      function dismissSheetSmoothly(sheet, callback) {
+        if (!sheet || !sheet.classList.contains('open')) return;
+        sheet.classList.remove('dragging');
+        sheet.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)';
+        sheet.style.transform = 'translate(-50%, 105%)';
+        setTimeout(function () {
+          sheet.classList.remove('open');
+          sheet.style.transform = '';
+          sheet.style.transition = '';
+          if (sheet.id === 'formSheet' && typeof closeForm === 'function') closeForm();
+          if (sheet.id === 'detailSheet' && typeof closePopup === 'function') closePopup();
+          if (typeof callback === 'function') callback();
+        }, 320);
+      }
+      window._dismissSheetSmoothly = dismissSheetSmoothly;
+
       function initSheetSwipeGestures() {
         var listClose = document.getElementById('listClose');
         if (listClose) {
           listClose.addEventListener('click', function () {
-            document.getElementById('listSheet').classList.remove('open');
+            dismissSheetSmoothly(document.getElementById('listSheet'));
           });
         }
         var formClose = document.getElementById('formClose');
         if (formClose) {
-          formClose.addEventListener('click', closeForm);
+          formClose.addEventListener('click', function () {
+            dismissSheetSmoothly(document.getElementById('formSheet'));
+          });
+        }
+        var dtClose = document.getElementById('dtClose');
+        if (dtClose) {
+          dtClose.addEventListener('click', function () {
+            dismissSheetSmoothly(document.getElementById('detailSheet'));
+          });
+        }
+        var nearClose = document.getElementById('nearClose');
+        if (nearClose) {
+          nearClose.addEventListener('click', function () {
+            dismissSheetSmoothly(document.getElementById('nearSheet'));
+          });
+        }
+        var routeClose = document.getElementById('routeClose');
+        if (routeClose) {
+          routeClose.addEventListener('click', function () {
+            dismissSheetSmoothly(document.getElementById('routeSheet'));
+          });
+        }
+        var googleSyncClose = document.getElementById('googleSyncClose');
+        if (googleSyncClose) {
+          googleSyncClose.addEventListener('click', function () {
+            dismissSheetSmoothly(document.getElementById('googleSyncSheet'));
+          });
         }
 
         var sheets = document.querySelectorAll('.sheet');
@@ -7821,12 +7866,12 @@
               sheet.style.transition = 'none';
               sheet.style.transform = 'translate(-50%, ' + deltaY + 'px)';
             } else if (deltaY < 0 && sheet.scrollTop <= 0) {
-              /* Resistance when trying to pull up past max height */
-              sheet.style.transform = 'translate(-50%, ' + (deltaY * 0.15) + 'px)';
+              /* Slight resistance if pulling upwards beyond bounds */
+              sheet.style.transform = 'translate(-50%, ' + (deltaY * 0.12) + 'px)';
             }
           }, { passive: false });
 
-          function finishDrag() {
+          function finishTouchDrag() {
             if (!isDragging) return;
             isDragging = false;
             sheet.classList.remove('dragging');
@@ -7835,20 +7880,12 @@
             var duration = Math.max(1, Date.now() - startTime);
             var velocity = deltaY / duration;
 
-            sheet.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
-
-            /* If pulled down > 70px or swiped with speed */
-            if (deltaY > 70 || (deltaY > 25 && velocity > 0.38)) {
-              sheet.style.transform = 'translate(-50%, 105%)';
-              setTimeout(function () {
-                sheet.classList.remove('open');
-                sheet.style.transform = '';
-                sheet.style.transition = '';
-                if (sheet.id === 'formSheet' && typeof closeForm === 'function') closeForm();
-                if (sheet.id === 'detailSheet' && typeof closePopup === 'function') closePopup();
-              }, 280);
+            /* If pulled down > 60px or flicked downwards */
+            if (deltaY > 60 || (deltaY > 20 && velocity > 0.35)) {
+              dismissSheetSmoothly(sheet);
             } else {
               /* Snap smoothly back into open view */
+              sheet.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
               sheet.style.transform = 'translate(-50%, 0)';
               setTimeout(function () {
                 sheet.style.transform = '';
@@ -7857,33 +7894,45 @@
             }
           }
 
-          sheet.addEventListener('touchend', finishDrag, { passive: true });
-          sheet.addEventListener('touchcancel', finishDrag, { passive: true });
+          sheet.addEventListener('touchend', finishTouchDrag, { passive: true });
+          sheet.addEventListener('touchcancel', finishTouchDrag, { passive: true });
 
-          /* Tap on handle zone directly to close any sheet */
+          /* Tap or drag on handle zone directly to close any sheet */
           var handleZone = sheet.querySelector('.sheet-handle-zone');
           if (handleZone) {
+            var handlePointerDown = false;
+            var handleDragMoved = false;
+
+            /* Smooth animated dismiss on tap / click */
             handleZone.addEventListener('click', function (e) {
               e.stopPropagation();
-              sheet.classList.remove('open');
-              if (sheet.id === 'formSheet' && typeof closeForm === 'function') closeForm();
-              if (sheet.id === 'detailSheet' && typeof closePopup === 'function') closePopup();
+              /* Only trigger tap dismiss if it was not a completed drag gesture */
+              if (!handleDragMoved) {
+                haptic('tap');
+                dismissSheetSmoothly(sheet);
+              }
+              handleDragMoved = false;
             });
 
             /* Mouse drag-to-dismiss support on desktop */
             var mouseStartY = 0, isMouseDragging = false;
             handleZone.addEventListener('mousedown', function (e) {
-              if (!sheet.classList.contains('open')) return;
+              if (!sheet.classList.contains('open') || e.button !== 0) return;
               mouseStartY = e.clientY;
               isMouseDragging = true;
+              handlePointerDown = true;
+              handleDragMoved = false;
               sheet.classList.add('dragging');
               sheet.style.transition = 'none';
 
               function onMouseMove(me) {
                 if (!isMouseDragging) return;
                 var dy = me.clientY - mouseStartY;
+                if (Math.abs(dy) > 4) handleDragMoved = true;
                 if (dy > 0) {
                   sheet.style.transform = 'translate(-50%, ' + dy + 'px)';
+                } else {
+                  sheet.style.transform = 'translate(-50%, ' + (dy * 0.12) + 'px)';
                 }
               }
 
@@ -7895,22 +7944,15 @@
                 document.removeEventListener('mouseup', onMouseUp);
 
                 var dy = me.clientY - mouseStartY;
-                sheet.style.transition = 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)';
-                if (dy > 65) {
-                  sheet.style.transform = 'translate(-50%, 105%)';
-                  setTimeout(function () {
-                    sheet.classList.remove('open');
-                    sheet.style.transform = '';
-                    sheet.style.transition = '';
-                    if (sheet.id === 'formSheet' && typeof closeForm === 'function') closeForm();
-                    if (sheet.id === 'detailSheet' && typeof closePopup === 'function') closePopup();
-                  }, 250);
-                } else {
+                if (dy > 55) {
+                  dismissSheetSmoothly(sheet);
+                } else if (handleDragMoved) {
+                  sheet.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
                   sheet.style.transform = 'translate(-50%, 0)';
                   setTimeout(function () {
                     sheet.style.transform = '';
                     sheet.style.transition = '';
-                  }, 250);
+                  }, 280);
                 }
               }
 
@@ -7920,11 +7962,11 @@
           }
         });
 
-        /* Escape key closes top open sheet */
+        /* Escape key closes top open sheet smoothly */
         document.addEventListener('keydown', function (e) {
           if (e.key === 'Escape') {
             document.querySelectorAll('.sheet.open').forEach(function (s) {
-              s.classList.remove('open');
+              dismissSheetSmoothly(s);
             });
           }
         });
