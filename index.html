@@ -6517,12 +6517,37 @@
         if (s.log.length > 40) s.log.length = 40; /* Capped ring buffer (Claude Opus 5) */
       }
 
+      /* Butter-smooth sheet animated dismissal */
+      function dismissSheetSmoothly(sheet, callback) {
+        if (!sheet || !sheet.classList.contains('open')) return;
+        sheet.classList.remove('dragging');
+        sheet.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)';
+        sheet.style.transform = 'translate(-50%, 105%)';
+        setTimeout(function () {
+          sheet.classList.remove('open');
+          sheet.style.transform = '';
+          sheet.style.transition = '';
+          if (sheet.id === 'formSheet' && typeof closeForm === 'function') closeForm();
+          if (sheet.id === 'detailSheet' && typeof closePopup === 'function') closePopup();
+          if (typeof callback === 'function') callback();
+        }, 320);
+      }
+      window._dismissSheetSmoothly = dismissSheetSmoothly;
+
       /* Mutual exclusivity for all bottom sheets/modals: when opening any window, close others */
       function closeAllSheets(exceptId) {
         var sheets = document.querySelectorAll('.sheet');
         sheets.forEach(function (sheet) {
           if (!exceptId || sheet.id !== exceptId) {
-            sheet.classList.remove('open');
+            if (sheet.classList.contains('open')) {
+              if (typeof dismissSheetSmoothly === 'function' && !exceptId) {
+                dismissSheetSmoothly(sheet);
+              } else {
+                sheet.classList.remove('open');
+                sheet.style.transform = '';
+                sheet.style.transition = '';
+              }
+            }
           }
         });
         var syncModal = document.getElementById('googleSyncModal');
@@ -7766,27 +7791,13 @@
          ============================================================ */
       document.getElementById('listBtn').addEventListener('click', function () {
         var sheet = document.getElementById('listSheet');
-        var willOpen = !sheet.classList.contains('open');
-        closeAllSheets();
-        if (willOpen) sheet.classList.add('open');
+        if (sheet.classList.contains('open')) {
+          dismissSheetSmoothly(sheet);
+        } else {
+          closeAllSheets('listSheet');
+          sheet.classList.add('open');
+        }
       });
-
-      /* Butter-smooth sheet animated dismissal */
-      function dismissSheetSmoothly(sheet, callback) {
-        if (!sheet || !sheet.classList.contains('open')) return;
-        sheet.classList.remove('dragging');
-        sheet.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)';
-        sheet.style.transform = 'translate(-50%, 105%)';
-        setTimeout(function () {
-          sheet.classList.remove('open');
-          sheet.style.transform = '';
-          sheet.style.transition = '';
-          if (sheet.id === 'formSheet' && typeof closeForm === 'function') closeForm();
-          if (sheet.id === 'detailSheet' && typeof closePopup === 'function') closePopup();
-          if (typeof callback === 'function') callback();
-        }, 320);
-      }
-      window._dismissSheetSmoothly = dismissSheetSmoothly;
 
       function initSheetSwipeGestures() {
         var listClose = document.getElementById('listClose');
@@ -9672,15 +9683,26 @@
          ============================================================ */
       /* Register SW (must be served over HTTPS or localhost) */
       if ('serviceWorker' in navigator) {
+        var refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function () {
+          if (!refreshing) {
+            refreshing = true;
+            window.location.reload();
+          }
+        });
+
         window.addEventListener('load', function () {
           navigator.serviceWorker.register('./sw.js').then(function (reg) {
+            reg.update();
             reg.addEventListener('updatefound', function () {
               var nw = reg.installing;
-              nw.addEventListener('statechange', function () {
-                if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                  toast('↓ App updated — reload to get the new version', 5000);
-                }
-              });
+              if (nw) {
+                nw.addEventListener('statechange', function () {
+                  if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                    toast('↓ Updated to newest version!', 3000);
+                  }
+                });
+              }
             });
           }).catch(function () { /* non-HTTPS host, SW skipped silently */ });
         });

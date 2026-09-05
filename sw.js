@@ -1,9 +1,9 @@
 /* SiteTrack Service Worker */
-/* sitetrack-v31 — App Shell + Smooth Bottom Sheet Drag-to-Close & Pulldown Animation */
+/* sitetrack-v32 — Network-First Shell + Live Bottom Sheet Smooth Dismissal */
 
 'use strict';
 
-const CACHE = 'sitetrack-v31';
+const CACHE = 'sitetrack-v32';
 const TILE_CACHE = 'sitetrack-tiles-v1';
 
 const MAX_TILES = 250;        // hard ceiling for tile entries
@@ -149,10 +149,28 @@ async function tileCacheFirst(e) {
 }
 
 /* ------------------------------------------------------------------ */
-/* SHELL STRATEGY — cache-first with network fallback + backfill       */
+/* SHELL STRATEGY — Network-first for HTML pages (so code updates are */
+/* immediate upon reload), Cache-first for media/fonts/scripts.       */
 /* ------------------------------------------------------------------ */
 
 async function shellCacheFirst(e) {
+  // For navigation requests (index.html / sitetrack.html), fetch from network first
+  // so users immediately see new code pushes on reload, falling back to cache if offline.
+  if (e.request.mode === 'navigate') {
+    try {
+      const networkRes = await fetch(e.request);
+      if (networkRes && networkRes.ok) {
+        const clone = networkRes.clone();
+        e.waitUntil(
+          caches.open(CACHE).then((cache) => cache.put(e.request, clone))
+        );
+        return networkRes;
+      }
+    } catch (_) {
+      // offline: fallback to cached shell below
+    }
+  }
+
   const cached = await caches.match(e.request, { cacheName: CACHE });
   if (cached) return cached;
 
