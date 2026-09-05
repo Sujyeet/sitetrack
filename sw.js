@@ -1,9 +1,9 @@
 /* SiteTrack Service Worker */
-/* sitetrack-v32 — Network-First Shell + Live Bottom Sheet Smooth Dismissal */
+/* sitetrack-v33 — Pointer Events Bottom Sheet Drag-to-Dismiss & Local Storage Sharing */
 
 'use strict';
 
-const CACHE = 'sitetrack-v32';
+const CACHE = 'sitetrack-v33';
 const TILE_CACHE = 'sitetrack-tiles-v1';
 
 const MAX_TILES = 250;        // hard ceiling for tile entries

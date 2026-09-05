@@ -2360,39 +2360,54 @@
     }
 
     .sheet.open {
-      animation: sheetSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      transform: translate(-50%, 0) !important;
     }
 
-    @keyframes sheetSlideIn {
-      from {
-        opacity: 0.6;
-        transform: translate(-50%, 16px);
-      }
+    .sheet.dragging {
+      animation: none !important;
+      transition: none !important;
+      user-select: none !important;
+      will-change: transform !important;
+    }
 
-      to {
-        opacity: 1;
-        transform: translate(-50%, 0);
-      }
+    .sheet.dragging * {
+      pointer-events: none !important;
+    }
+
+    .sheet.dragging .sheet-handle-zone {
+      pointer-events: auto !important;
+      cursor: grabbing !important;
     }
 
     .sheet-drag-handle {
-      background: rgba(255, 255, 255, 0.28) !important;
-      width: 52px !important;
+      background: rgba(255, 255, 255, 0.35) !important;
+      width: 54px !important;
       height: 5px !important;
       border-radius: 999px !important;
-      transition: background 0.2s, transform 0.2s, width 0.2s !important;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5) !important;
+      transition: background 0.15s, transform 0.15s, width 0.15s !important;
     }
 
     .sheet-handle-zone {
-      padding: 10px 0 14px !important;
+      width: 100% !important;
+      padding: 14px 0 16px !important;
+      margin-top: -12px !important;
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
       cursor: grab !important;
+      touch-action: none !important;
+      -webkit-touch-callout: none !important;
+      -webkit-user-select: none !important;
+      user-select: none !important;
+      -webkit-tap-highlight-color: transparent !important;
     }
 
     .sheet-handle-zone:hover .sheet-drag-handle,
     .sheet-handle-zone:active .sheet-drag-handle,
     .sheet.dragging .sheet-drag-handle {
-      background: rgba(255, 255, 255, 0.65) !important;
-      width: 64px !important;
+      background: rgba(255, 255, 255, 0.9) !important;
+      width: 66px !important;
       transform: scaleY(1.3) !important;
     }
 
@@ -4423,12 +4438,12 @@
         <div id="emptyMsg">No sites yet. Tap + to drop your first site pin.</div>
       </div>
     </div>
-    <div class="datarow">
+    <div class="datarow" style="flex-wrap:wrap;gap:6px">
+      <button class="btn btn-ghost btn-sm" id="shareDataBtn" style="color:#10b981;font-weight:700" title="Share all sites directly with a friend (WhatsApp/Nearby Share)">🔗 SHARE DATA</button>
       <button class="btn btn-ghost btn-sm" id="exportBtn">EXPORT JSON</button>
       <button class="btn btn-ghost btn-sm" id="exportCsvBtn">EXPORT CSV</button>
       <button class="btn btn-ghost btn-sm" id="importBtn">IMPORT JSON</button>
-      <button class="btn btn-ghost btn-sm" id="googleSyncBtn" style="color:var(--accent);font-weight:700">Cloud
-        Backup</button>
+      <button class="btn btn-ghost btn-sm" id="googleSyncBtn" style="color:var(--accent);font-weight:700">Cloud Backup</button>
       <input type="file" id="importFile" accept="application/json" style="display:none">
     </div>
 
@@ -6521,16 +6536,25 @@
       function dismissSheetSmoothly(sheet, callback) {
         if (!sheet || !sheet.classList.contains('open')) return;
         sheet.classList.remove('dragging');
-        sheet.style.transition = 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1)';
+        sheet.style.transition = 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
         sheet.style.transform = 'translate(-50%, 105%)';
         setTimeout(function () {
           sheet.classList.remove('open');
           sheet.style.transform = '';
           sheet.style.transition = '';
-          if (sheet.id === 'formSheet' && typeof closeForm === 'function') closeForm();
+          if (sheet.id === 'formSheet') {
+            editingId = null; pendingLatLng = null; pendingMedia = [];
+            var fmp = document.getElementById('formMediaPreview');
+            if (fmp) fmp.innerHTML = '';
+            ['fName', 'fBuilder', 'fContactPerson', 'fPhone', 'fEmail', 'fNotes', 'fLandmark', 'fSqft', 'fFollowUp']
+              .forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+            var fs = document.getElementById('fStatus'); if (fs) fs.value = 'not_visited';
+            var fst = document.getElementById('fStage'); if (fst) fst.selectedIndex = 0;
+            var fct = document.getElementById('fCtype'); if (fct) fct.selectedIndex = 0;
+          }
           if (sheet.id === 'detailSheet' && typeof closePopup === 'function') closePopup();
           if (typeof callback === 'function') callback();
-        }, 320);
+        }, 300);
       }
       window._dismissSheetSmoothly = dismissSheetSmoothly;
 
@@ -7470,10 +7494,17 @@
       });
 
       map.on('click', function (e) {
-        if (!adding) return;
-        adding = false;
-        var b = document.getElementById('addBtn'); b.classList.remove('armed'); b.textContent = '+';
-        openForm(e.lngLat.lat, e.lngLat.lng);
+        if (adding) {
+          adding = false;
+          var b = document.getElementById('addBtn'); b.classList.remove('armed'); b.textContent = '+';
+          openForm(e.lngLat.lat, e.lngLat.lng);
+          return;
+        }
+        // Smoothly dismiss any open bottom sheets on map background tap
+        var openSheets = document.querySelectorAll('.sheet.open');
+        if (openSheets.length) {
+          openSheets.forEach(function (s) { dismissSheetSmoothly(s); });
+        }
       });
 
       document.getElementById('cancelForm').addEventListener('click', closeForm);
@@ -7800,102 +7831,93 @@
       });
 
       function initSheetSwipeGestures() {
-        var listClose = document.getElementById('listClose');
-        if (listClose) {
-          listClose.addEventListener('click', function () {
-            dismissSheetSmoothly(document.getElementById('listSheet'));
-          });
-        }
-        var formClose = document.getElementById('formClose');
-        if (formClose) {
-          formClose.addEventListener('click', function () {
-            dismissSheetSmoothly(document.getElementById('formSheet'));
-          });
-        }
-        var dtClose = document.getElementById('dtClose');
-        if (dtClose) {
-          dtClose.addEventListener('click', function () {
-            dismissSheetSmoothly(document.getElementById('detailSheet'));
-          });
-        }
-        var nearClose = document.getElementById('nearClose');
-        if (nearClose) {
-          nearClose.addEventListener('click', function () {
-            dismissSheetSmoothly(document.getElementById('nearSheet'));
-          });
-        }
-        var routeClose = document.getElementById('routeClose');
-        if (routeClose) {
-          routeClose.addEventListener('click', function () {
-            dismissSheetSmoothly(document.getElementById('routeSheet'));
-          });
-        }
-        var googleSyncClose = document.getElementById('googleSyncClose');
-        if (googleSyncClose) {
-          googleSyncClose.addEventListener('click', function () {
-            dismissSheetSmoothly(document.getElementById('googleSyncSheet'));
-          });
-        }
+        ['listClose', 'formClose', 'dtClose', 'nearClose', 'routeClose', 'googleSyncClose', 'missionClose'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) {
+            el.addEventListener('click', function (e) {
+              e.stopPropagation();
+              var sheet = el.closest('.sheet');
+              if (sheet) dismissSheetSmoothly(sheet);
+            });
+          }
+        });
 
         var sheets = document.querySelectorAll('.sheet');
         sheets.forEach(function (sheet) {
+          var handleZone = sheet.querySelector('.sheet-handle-zone');
+          if (!handleZone) return;
+
           var startY = 0;
           var currentY = 0;
           var isDragging = false;
           var startTime = 0;
-          var touchStartedAtTop = false;
+          var lastPointerY = 0;
+          var lastPointerTime = 0;
+          var velocity = 0;
 
-          function getTouchY(e) {
-            return e.touches && e.touches.length ? e.touches[0].clientY : 0;
-          }
-
-          sheet.addEventListener('touchstart', function (e) {
+          handleZone.addEventListener('pointerdown', function (e) {
+            // Only accept primary button (touch or left mouse button)
+            if (e.pointerType === 'mouse' && e.button !== 0) return;
             if (!sheet.classList.contains('open')) return;
-            var target = e.target;
-            var isHandle = target.closest('.sheet-handle-zone') || target.closest('.sheet-drag-handle');
-            var isHeader = target.closest('.detail-header') || target.tagName === 'H2';
-            var atTop = sheet.scrollTop <= 2;
 
-            if (isHandle || isHeader || atTop) {
-              startY = getTouchY(e);
-              currentY = startY;
-              startTime = Date.now();
-              isDragging = true;
-              touchStartedAtTop = atTop;
-            }
-          }, { passive: true });
+            isDragging = true;
+            startY = e.clientY;
+            lastPointerY = startY;
+            currentY = 0;
+            startTime = performance.now();
+            lastPointerTime = startTime;
+            velocity = 0;
 
-          sheet.addEventListener('touchmove', function (e) {
+            sheet.classList.add('dragging');
+            sheet.style.transition = 'none';
+
+            try {
+              handleZone.setPointerCapture(e.pointerId);
+            } catch (_) {}
+          });
+
+          handleZone.addEventListener('pointermove', function (e) {
             if (!isDragging) return;
-            currentY = getTouchY(e);
-            var deltaY = currentY - startY;
+            var now = performance.now();
+            var rawDy = e.clientY - startY;
 
-            /* When user drags downwards */
-            if (deltaY > 0 && (sheet.scrollTop <= 0 || touchStartedAtTop)) {
-              if (e.cancelable) e.preventDefault();
-              sheet.classList.add('dragging');
-              sheet.style.transition = 'none';
-              sheet.style.transform = 'translate(-50%, ' + deltaY + 'px)';
-            } else if (deltaY < 0 && sheet.scrollTop <= 0) {
-              /* Slight resistance if pulling upwards beyond bounds */
-              sheet.style.transform = 'translate(-50%, ' + (deltaY * 0.12) + 'px)';
+            var dt = now - lastPointerTime;
+            if (dt > 0) {
+              var v = (e.clientY - lastPointerY) / dt;
+              velocity = velocity * 0.6 + v * 0.4;
+              lastPointerY = e.clientY;
+              lastPointerTime = now;
             }
-          }, { passive: false });
 
-          function finishTouchDrag() {
+            if (rawDy > 0) {
+              currentY = rawDy;
+              sheet.style.transform = 'translate(-50%, ' + currentY + 'px)';
+            } else {
+              currentY = rawDy * 0.15;
+              sheet.style.transform = 'translate(-50%, ' + currentY + 'px)';
+            }
+          });
+
+          function onPointerEnd(e) {
             if (!isDragging) return;
             isDragging = false;
             sheet.classList.remove('dragging');
 
-            var deltaY = currentY - startY;
-            var duration = Math.max(1, Date.now() - startTime);
-            var velocity = deltaY / duration;
+            try {
+              handleZone.releasePointerCapture(e.pointerId);
+            } catch (_) {}
 
-            /* If pulled down > 60px or flicked downwards */
-            if (deltaY > 60 || (deltaY > 20 && velocity > 0.35)) {
+            var totalDy = e.clientY - startY;
+            var duration = performance.now() - startTime;
+            var isTap = Math.abs(totalDy) < 8 && duration < 350;
+
+            // Dismiss if tapped on handle, or dragged down > 50px, or flicked down (velocity > 0.35 px/ms)
+            var shouldDismiss = isTap || totalDy > 50 || (totalDy > 20 && velocity > 0.35);
+
+            if (shouldDismiss) {
+              if (isTap && typeof haptic === 'function') haptic('tap');
               dismissSheetSmoothly(sheet);
             } else {
-              /* Snap smoothly back into open view */
               sheet.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
               sheet.style.transform = 'translate(-50%, 0)';
               setTimeout(function () {
@@ -7905,72 +7927,8 @@
             }
           }
 
-          sheet.addEventListener('touchend', finishTouchDrag, { passive: true });
-          sheet.addEventListener('touchcancel', finishTouchDrag, { passive: true });
-
-          /* Tap or drag on handle zone directly to close any sheet */
-          var handleZone = sheet.querySelector('.sheet-handle-zone');
-          if (handleZone) {
-            var handlePointerDown = false;
-            var handleDragMoved = false;
-
-            /* Smooth animated dismiss on tap / click */
-            handleZone.addEventListener('click', function (e) {
-              e.stopPropagation();
-              /* Only trigger tap dismiss if it was not a completed drag gesture */
-              if (!handleDragMoved) {
-                haptic('tap');
-                dismissSheetSmoothly(sheet);
-              }
-              handleDragMoved = false;
-            });
-
-            /* Mouse drag-to-dismiss support on desktop */
-            var mouseStartY = 0, isMouseDragging = false;
-            handleZone.addEventListener('mousedown', function (e) {
-              if (!sheet.classList.contains('open') || e.button !== 0) return;
-              mouseStartY = e.clientY;
-              isMouseDragging = true;
-              handlePointerDown = true;
-              handleDragMoved = false;
-              sheet.classList.add('dragging');
-              sheet.style.transition = 'none';
-
-              function onMouseMove(me) {
-                if (!isMouseDragging) return;
-                var dy = me.clientY - mouseStartY;
-                if (Math.abs(dy) > 4) handleDragMoved = true;
-                if (dy > 0) {
-                  sheet.style.transform = 'translate(-50%, ' + dy + 'px)';
-                } else {
-                  sheet.style.transform = 'translate(-50%, ' + (dy * 0.12) + 'px)';
-                }
-              }
-
-              function onMouseUp(me) {
-                if (!isMouseDragging) return;
-                isMouseDragging = false;
-                sheet.classList.remove('dragging');
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-
-                var dy = me.clientY - mouseStartY;
-                if (dy > 55) {
-                  dismissSheetSmoothly(sheet);
-                } else if (handleDragMoved) {
-                  sheet.style.transition = 'transform 0.28s cubic-bezier(0.16, 1, 0.3, 1)';
-                  sheet.style.transform = 'translate(-50%, 0)';
-                  setTimeout(function () {
-                    sheet.style.transform = '';
-                    sheet.style.transition = '';
-                  }, 280);
-                }
-              }
-
-              document.addEventListener('mousemove', onMouseMove);
-              document.addEventListener('mouseup', onMouseUp);
-            });
-          }
+          handleZone.addEventListener('pointerup', onPointerEnd);
+          handleZone.addEventListener('pointercancel', onPointerEnd);
         });
 
         /* Escape key closes top open sheet smoothly */
@@ -8318,20 +8276,73 @@
         a.click(); URL.revokeObjectURL(a.href);
       });
 
-      // Import JSON
+      // 1-Tap Data Sharing with Friends / Other Devices (Web Share API + WhatsApp / Download fallback)
+      var shareDataBtn = document.getElementById('shareDataBtn');
+      if (shareDataBtn) {
+        shareDataBtn.addEventListener('click', function () {
+          if (!sites || !sites.length) {
+            toast('No sites saved yet! Add a site first before sharing.');
+            return;
+          }
+          if (typeof haptic === 'function') haptic('tap');
+          var jsonStr = JSON.stringify(sites, null, 2);
+          var fileName = 'sitetrack_backup_' + localDayKey() + '.json';
+
+          if (navigator.share) {
+            try {
+              var file = new File([jsonStr], fileName, { type: 'application/json' });
+              if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({
+                  title: 'SiteTrack Backup (' + sites.length + ' sites)',
+                  text: 'SiteTrack data backup: ' + sites.length + ' sites. Open SiteTrack on your device and tap IMPORT JSON to load.',
+                  files: [file]
+                }).then(function () {
+                  toast('Backup shared successfully ✓');
+                }).catch(function (err) {
+                  if (err && err.name !== 'AbortError') fallbackDownloadShare(jsonStr, fileName);
+                });
+                return;
+              }
+            } catch (_) {}
+
+            navigator.share({
+              title: 'SiteTrack Backup (' + sites.length + ' sites)',
+              text: 'SiteTrack data backup: ' + sites.length + ' sites. Open: ' + window.location.href
+            }).catch(function () {});
+            fallbackDownloadShare(jsonStr, fileName);
+          } else {
+            fallbackDownloadShare(jsonStr, fileName);
+          }
+        });
+      }
+
+      function fallbackDownloadShare(jsonStr, fileName) {
+        var b = new Blob([jsonStr], { type: 'application/json' });
+        var url = URL.createObjectURL(b);
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        toast('Downloaded ' + fileName + ' — send this to your friend via WhatsApp! ✓', 4000);
+      }
+
+      // Import JSON with Merge (keeps current phone sites) or Replace option
       document.getElementById('importBtn').addEventListener('click', function () { document.getElementById('importFile').click(); });
       document.getElementById('importFile').addEventListener('change', function (e) {
         var f = e.target.files[0]; if (!f) return;
         var rd = new FileReader();
         rd.onload = function () {
           try {
-            var d = JSON.parse(rd.result);
-            if (!Array.isArray(d)) throw 0;
-            if (!confirm('Replace current ' + sites.length + ' sites with ' + d.length + ' imported sites?')) return;
-            sites = d;
-            // Run migration on imported data too
+            var incoming = JSON.parse(rd.result);
+            if (!Array.isArray(incoming)) throw 0;
+            
+            // Validate & migrate incoming items
             var valid = Object.keys(statusMeta);
-            sites.forEach(function (s) {
+            incoming.forEach(function (s) {
+              if (!s.id) s.id = uid();
               if (!valid.includes(s.status)) s.status = 'not_visited';
               if (s.contact_person === undefined) s.contact_person = '';
               if (s.sqft === undefined) s.sqft = '';
@@ -8342,7 +8353,37 @@
               if (s.email === undefined) s.email = '';
               if (!Array.isArray(s.log)) s.log = [];
             });
-            persist(); render(); toast('Backup imported ✓');
+
+            if (sites.length > 0) {
+              var doMerge = confirm(
+                'Import ' + incoming.length + ' sites:\n\n' +
+                '• Click OK to MERGE with your existing ' + sites.length + ' sites (recommended).\n' +
+                '• Click CANCEL to REPLACE all current sites with imported data.'
+              );
+              if (doMerge) {
+                var existingIds = new Set(sites.map(function (x) { return x.id; }));
+                var added = 0;
+                incoming.forEach(function (s) {
+                  if (!existingIds.has(s.id)) {
+                    sites.push(s);
+                    existingIds.add(s.id);
+                    added++;
+                  }
+                });
+                persist(); render();
+                toast('Merged ' + added + ' new sites (Total: ' + sites.length + ') ✓', 3500);
+              } else {
+                if (confirm('Are you sure you want to REPLACE all ' + sites.length + ' sites on this device?')) {
+                  sites = incoming;
+                  persist(); render();
+                  toast('Replaced with ' + incoming.length + ' imported sites ✓', 3500);
+                }
+              }
+            } else {
+              sites = incoming;
+              persist(); render();
+              toast('Imported ' + incoming.length + ' sites ✓', 3500);
+            }
           } catch (err) { toast('Invalid backup file'); }
         };
         rd.readAsText(f);
