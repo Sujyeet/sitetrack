@@ -1,9 +1,9 @@
 /* SiteTrack Service Worker */
-/* sitetrack-v34 — Real-time GPS: null speed fix, maximumAge 0, visibilitychange restart */
+/* sitetrack-v35 — Fix person pointer undeclared variables: DEADBAND_METERS, isSimulating, mePopup */
 
 'use strict';
 
-const CACHE = 'sitetrack-v34';
+const CACHE = 'sitetrack-v35';
 const TILE_CACHE = 'sitetrack-tiles-v1';
 
 const MAX_TILES = 250;        // hard ceiling for tile entries
