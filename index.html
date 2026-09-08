@@ -5455,22 +5455,7 @@
       var safehouseMarker = null;
       var SAFEHOUSE_IMG = 'data:image/png;base64,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';
 
-      /* ============================================================
-         GPS ENGINE: 60 FPS LERP, STATIONARY DEADBAND & HEADING BEAM
-         ============================================================ */
-      var currentMeLng = null;
-      var currentMeLat = null;
-      var targetMeLng = null;
-      var targetMeLat = null;
-      var currentMeHeading = 0;
-      var targetMeHeading = 0;
-      var lastGpsAccuracy = 10;
-      var lastGpsSpeed = 0;
-      var isGpsStationaryLocked = true;
-      var meRafId = null;
-      var liveGpsWatchId = null;
-      var mePopup = null;
-      var DEADBAND_METERS = 3.5;
+      /* GPS state variables declared below in GOOGLE MAPS USER MARKER block */
 
       /* ============================================================
          COMPASS ENGINE — Smooth Decoupled Orientation (Claude-Fable-5)
@@ -8012,15 +7997,22 @@
         var rawLat = pos.coords.latitude;
         var rawLng = pos.coords.longitude;
         var acc = pos.coords.accuracy || 10;
-        var spd = pos.coords.speed || 0;
+        // IMPORTANT: speed is null when the browser/device can't determine it (common in cars).
+        // null || 0 = 0, which incorrectly triggers the stationary lock.
+        // Only treat as truly stationary when speed is EXPLICITLY zero and position hasn't changed.
+        var rawSpd = pos.coords.speed; // may be null
+        var spd = (rawSpd !== null && rawSpd !== undefined) ? rawSpd : -1; // -1 = unknown
         var heading = pos.coords.heading;
 
         lastGpsAccuracy = acc;
-        lastGpsSpeed = spd * 3.6;
+        lastGpsSpeed = (spd >= 0 ? spd : 0) * 3.6;
 
         if (targetMeLat !== null && targetMeLng !== null) {
           var dist = haversine(targetMeLat, targetMeLng, rawLat, rawLng) * 1000;
-          if (dist < DEADBAND_METERS && spd < 0.5) {
+          // Only apply stationary deadband when:
+          //  - position changed by less than DEADBAND_METERS, AND
+          //  - speed is explicitly reported as < 0.5 m/s (not null/unknown)
+          if (dist < DEADBAND_METERS && spd >= 0 && spd < 0.5) {
             isGpsStationaryLocked = true;
             if (heading !== null && !isNaN(heading)) {
               targetMeHeading = heading;
@@ -8122,8 +8114,8 @@
           /* 2. Keep continuous background high-accuracy watcher active on main map */
           if (!liveGpsWatchId) {
             liveGpsWatchId = navigator.geolocation.watchPosition(handleGpsFix, function (err) {
-              console.warn('[GPS Watcher] error:', err);
-            }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+              console.warn('[GPS Watcher] error:', err.code, err.message);
+            }, { enableHighAccuracy: true, maximumAge: 0 });
           }
         }, function (err) {
           if (btn) btn.classList.remove('locating');
@@ -9659,6 +9651,20 @@
         render();
         initUserSpawnPoint();
       });
+
+      // ── GPS wake on visibility restore (mobile tab-switch / screen lock fix) ──
+      // When a user returns from another app, Android Chrome and iOS Safari can
+      // silently drop the active watchPosition. Restart if we've lost it.
+      document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && navigator.geolocation) {
+          if (!liveGpsWatchId) {
+            liveGpsWatchId = navigator.geolocation.watchPosition(handleGpsFix, function (err) {
+              console.warn('[GPS wake] error:', err);
+            }, { enableHighAccuracy: true, maximumAge: 0 });
+            console.log('[GPS] Restarted watcher after tab visibility restore');
+          }
+        }
+      });
       /* also render immediately in case load already fired */
       if (map.isStyleLoaded()) {
         render();
@@ -9713,8 +9719,18 @@
 
           if (!liveGpsWatchId) {
             liveGpsWatchId = navigator.geolocation.watchPosition(handleGpsFix, function (err) {
-              console.warn('Geolocation continuous watch error:', err);
-            }, { enableHighAccuracy: true, maximumAge: 2000 });
+              console.warn('[GPS] Continuous watch error:', err.code, err.message);
+              // On TIMEOUT or POSITION_UNAVAILABLE, clear and restart so we don't stay stuck
+              if (err.code === 3 || err.code === 2) {
+                navigator.geolocation.clearWatch(liveGpsWatchId);
+                liveGpsWatchId = null;
+                setTimeout(function () {
+                  if (!liveGpsWatchId) {
+                    liveGpsWatchId = navigator.geolocation.watchPosition(handleGpsFix, function () {}, { enableHighAccuracy: true, maximumAge: 0 });
+                  }
+                }, 2000);
+              }
+            }, { enableHighAccuracy: true, maximumAge: 0 });
           }
         }
       }
